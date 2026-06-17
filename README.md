@@ -22,6 +22,12 @@ AI-powered image editor with **9+ tools** — grayscale, cartoonify, edge detect
 | 📈 **Super Resolution** | Upscale images by 2x |
 | 🖼️ **Side-by-Side Preview** | Compare original and edited |
 
+🔗 Links
+
+Live Demo: [Live Demo](https://voice-cloning-lite-bmdp9etvmtbuczggts8lkg.streamlit.app/)
+
+GitHub: [GitHub](https://github.com/Aikaksh-Singh-Routela/ai-image-editor/tree/main)
+
 ## 🛠️ Tech Stack
 
 - **Frontend:** Streamlit
@@ -98,9 +104,5 @@ Aikaksh Singh Routela
 https://img.shields.io/badge/GitHub-100000?logo=github&logoColor=white
 https://img.shields.io/badge/LinkedIn-0077B5?logo=linkedin&logoColor=white
 
-🔗 Links
-Live Demo: ai-image-editor.streamlit.app
-
-GitHub: Aikaksh-Singh-Routela/ai-image-editor
 
 ⭐ Star this repo if you found it useful!
