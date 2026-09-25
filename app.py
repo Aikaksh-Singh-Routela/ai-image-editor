@@ -1,8 +1,13 @@
 import streamlit as st
+from dotenv import load_dotenv
+load_dotenv()
 from PIL import Image, ImageFilter, ImageEnhance, ImageOps
 import numpy as np
 import cv2
 import io
+import requests
+import os
+from io import BytesIO
 
 # ============================================
 # PAGE CONFIGURATION
@@ -40,7 +45,8 @@ with st.sidebar:
             "Edge Detection",
             "Cartoonify",
             "Brightness/Contrast",
-            "Super Resolution"
+            "Super Resolution",
+            "Remove Background"
         ]
     )
     
@@ -86,12 +92,23 @@ def apply_edge_detection(image):
     return Image.fromarray(edges)
 
 def apply_cartoonify(image):
+    # Convert PIL image to OpenCV format
     img_cv = np.array(image)
-    gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
+    img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+    
+    # 1. Create an edge mask
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
     gray = cv2.medianBlur(gray, 5)
     edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
+    
+    # 2. Apply a bilateral filter to smooth colors
     color = cv2.bilateralFilter(img_cv, 9, 300, 300)
+    
+    # 3. Combine the color image with the edge mask
     cartoon = cv2.bitwise_and(color, color, mask=edges)
+    
+    # Convert back to RGB for PIL
+    cartoon = cv2.cvtColor(cartoon, cv2.COLOR_BGR2RGB)
     return Image.fromarray(cartoon)
 
 def apply_brightness_contrast(image, brightness, contrast):
@@ -104,6 +121,29 @@ def apply_brightness_contrast(image, brightness, contrast):
 def apply_super_resolution(image):
     width, height = image.size
     return image.resize((width * 2, height * 2), Image.Resampling.LANCZOS)
+
+def apply_background_removal(image):
+    api_key = os.getenv("REMOVE_BG_API_KEY")
+    if not api_key:
+        raise Exception("REMOVE_BG_API_KEY is not set in your .env file.")
+    
+    # Save the PIL image to a bytes buffer
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format='PNG')
+    img_byte_arr = img_byte_arr.getvalue()
+    
+    # Send to remove.bg API
+    response = requests.post(
+        "https://api.remove.bg/v1.0/removebg",
+        files={"image_file": ("image.png", img_byte_arr)},
+        data={"size": "auto"},
+        headers={"X-Api-Key": api_key},
+    )
+    
+    if response.status_code == requests.codes.ok:
+        return Image.open(BytesIO(response.content))
+    else:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
 
 # ============================================
 # MAIN APP LOGIC
@@ -137,29 +177,34 @@ if uploaded_file is not None:
                 edited_image = apply_sharpen(original, sharpen_amount)
             elif tool == "Edge Detection":
                 edited_image = apply_edge_detection(original)
+            elif tool == "Remove Background":
+                edited_image = apply_background_removal(original)
             elif tool == "Cartoonify":
                 edited_image = apply_cartoonify(original)
             elif tool == "Brightness/Contrast":
                 edited_image = apply_brightness_contrast(original, brightness, contrast)
             elif tool == "Super Resolution":
                 edited_image = apply_super_resolution(original)
-            
-            st.image(edited_image, use_container_width=True)
-            
-            img_bytes = io.BytesIO()
-            edited_image.save(img_bytes, format='PNG')
-            img_bytes = img_bytes.getvalue()
-            
-            st.download_button(
-                "💾 Download Edited Image",
-                img_bytes,
-                file_name="edited_image.png",
-                mime="image/png"
-            )
-            
+
         except Exception as e:
             st.error(f"Error: {str(e)}")
+            edited_image = original.copy()  
 
+        st.image(edited_image, use_container_width=True)
+        
+        img_bytes = io.BytesIO()
+        edited_image.save(img_bytes, format='PNG')
+        img_bytes = img_bytes.getvalue()
+        
+        st.download_button(
+            "💾 Download Edited Image",
+            img_bytes,
+            file_name="edited_image.png",
+            mime="image/png"
+        )
+
+            
+    
 else:
     st.info("👈 Upload an image from the sidebar to get started!")
 
